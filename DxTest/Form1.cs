@@ -1,4 +1,5 @@
 using SharpCompress.Archives;
+using SharpCompress.Common;
 using SharpDX;
 using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
@@ -35,19 +36,44 @@ namespace DxTest
 
         private void CacheAllAssets()
         {
-            using (var archive = ArchiveFactory.Open("C:\\assets.rez"))
+            using (var archive = ArchiveFactory.Open("C:\\Program Files\\NetworkDLS\\Strikeforce Infinity\\Si.Assets.rez"))
             {
                 foreach (var entry in archive.Entries)
                 {
                     switch (Path.GetExtension(entry.Key).ToLower())
                     {
                         case ".png":
-                            LoadBitmapFromFilePath(entry.Key);
+                            LoadBitmapFromFileStream(entry);
                             break;
                     }
                 }
             }
         }
+
+
+ 
+
+        private MemoryStream GetCompressedStream(IArchiveEntry entry)
+        {
+                    using var stream = entry.OpenEntryStream();
+                    var memoryStream = new MemoryStream();
+                    stream.CopyTo(memoryStream);
+                    memoryStream.Position = 0;
+                    return memoryStream;
+
+        }
+
+        private SharpDX.Direct2D1.Bitmap LoadBitmapFromFileStream(IArchiveEntry entry)
+        {
+            var stream = GetCompressedStream(entry);
+            using var decoder = new BitmapDecoder(_wicFactory, stream, DecodeOptions.CacheOnLoad);
+            using var frame = decoder.GetFrame(0);
+            using var converter = new FormatConverter(_wicFactory);
+            converter.Initialize(frame, SharpDX.WIC.PixelFormat.Format32bppPBGRA);
+
+            return SharpDX.Direct2D1.Bitmap.FromWicBitmap(renderTarget, converter);
+        }
+
 
         private SharpDX.Direct2D1.Bitmap LoadBitmapFromFilePath(string filePath)
         {
@@ -66,7 +92,7 @@ namespace DxTest
             renderTarget.BeginDraw();
             renderTarget.Clear(clearColor);
 
-            var bitmap = LoadBitmapFromFilePath("C:\\32.png");
+            var bitmap = LoadBitmapFromFilePath("C:\\NTDLS\\TestMeNot\\32.png");
 
             DrawBitmapAt(renderTarget, bitmap, 100, 100);
 
